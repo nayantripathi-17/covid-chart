@@ -129,8 +129,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         return item.id || index;
     }
 
-    onCountryInputChange(value: string): void {
-        this.filteredCountries = this.allCountries.filter(country =>
+    onCountryInputChange(value: string | CountryOption): void {
+        if (typeof value !== 'string') {
+            return;
+        }
+
+        this.filteredCountries = this.allCountries.filter(country=>
             country.countryName.toLowerCase().startsWith(value.toLowerCase())
         );
     }
