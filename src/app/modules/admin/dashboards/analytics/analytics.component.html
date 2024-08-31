@@ -21,11 +21,14 @@
                     [(ngModel)]="selectedCountry"
                     (ngModelChange)="onCountryInputChange($event)"
                 />
-                <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayCountry">
+                <mat-autocomplete 
+                    #auto="matAutocomplete" 
+                    [displayWith]="displayCountry"
+                    (optionSelected)="onCountrySelected($event.option.value)"
+                >
                     <mat-option
                         *ngFor="let country of filteredCountries"
                         [value]="country"
-                        (onSelectionChange)="onCountrySelected(country)"
                     >
                         {{ country.countryName }}
                     </mat-option>

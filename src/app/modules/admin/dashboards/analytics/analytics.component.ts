@@ -18,10 +18,13 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     data: ApiResponseByCountryCode | null;
     allCountries: CountryOption[];
     filteredCountries: CountryOption[] = [];
-    selectedCountry: CountryOption | null = null;
+    selectedCountry: CountryOption = {
+        countryCode: 'all',
+        countryName: 'All'
+    };
 
     private _unsubscribeAll: Subject<any> = new Subject<any>();
-    private _selectedCountryCode: string;
+    private _selectedCountryCode: string = 'all';
 
     /**
      * Constructor
@@ -342,6 +345,11 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     private _onCountryCodeChange(newCountryCode: string): void {
-        this._analyticsService.updateData(newCountryCode);
+        if(newCountryCode === 'all'){
+            this._analyticsService.updateData();
+        }
+        else{
+            this._analyticsService.updateData(newCountryCode);
+        }
     }
 }
