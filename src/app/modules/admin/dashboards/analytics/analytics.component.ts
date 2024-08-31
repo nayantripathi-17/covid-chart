@@ -277,7 +277,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
                             show: true,
                             total: {
                                 show: true,
-                                formatter: (): string => `${Number(this.data?.[0].confirmed).toLocaleString()}`,
+                                formatter: (): string => `${Number(this.data?.[0]?.confirmed).toLocaleString()}`,
                                 color: '#0ea5e9',
                                 label: 'Total Cases'
                             },
