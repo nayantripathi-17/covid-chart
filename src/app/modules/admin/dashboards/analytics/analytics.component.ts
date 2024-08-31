@@ -17,6 +17,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     chartPie: ApexOptions;
     data: ApiResponseByCountryCode | null;
     allCountries: CountryOption[];
+    filteredCountries: CountryOption[] = [];
+    selectedCountry: CountryOption | null = null;
 
     private _unsubscribeAll: Subject<any> = new Subject<any>();
     private _selectedCountryCode: string;
@@ -77,8 +79,6 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
             }
         };
 
-        this.selectedCountryCode = 'all';
-
         this._analyticsService.countriesList$
             .pipe(takeUntil(this._unsubscribeAll))
             .subscribe((countryList) => {
@@ -95,7 +95,15 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
                 });
 
                 this.allCountries = newCountryList;
+                this.filteredCountries = this.allCountries;
+                this.selectedCountryCode = 'all';
+                this.selectedCountry = {
+                    countryCode: 'all',
+                    countryName: 'All'
+                };
             });
+
+        this.selectedCountryCode = 'all';
     }
 
     /**
@@ -119,6 +127,22 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
      */
     trackByFn(index: number, item: any): any {
         return item.id || index;
+    }
+
+    onCountryInputChange(value: string): void {
+        this.filteredCountries = this.allCountries.filter(country =>
+            country.countryName.toLowerCase().startsWith(value.toLowerCase())
+        );
+    }
+
+    onCountrySelected(country: CountryOption): void {
+        if (country && country.countryCode !== this._selectedCountryCode) {
+            this.selectedCountryCode = country.countryCode;
+        }
+    }
+
+    displayCountry(country: CountryOption): string {
+        return country ? country.countryName : '';
     }
 
     // -----------------------------------------------------------------------------------------------------

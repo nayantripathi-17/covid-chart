@@ -14,14 +14,22 @@
         <div class="w-full mt-8">
             <mat-form-field class="w-full">
                 <mat-label>Select Country</mat-label>
-                <mat-select [(value)]="selectedCountryCode">
+                <input
+                    type="text"
+                    matInput
+                    [matAutocomplete]="auto"
+                    [(ngModel)]="selectedCountry"
+                    (ngModelChange)="onCountryInputChange($event)"
+                />
+                <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayCountry">
                     <mat-option
-                        *ngFor="let country of allCountries"
-                        [value]="country.countryCode"
+                        *ngFor="let country of filteredCountries"
+                        [value]="country"
+                        (onSelectionChange)="onCountrySelected(country)"
                     >
                         {{ country.countryName }}
                     </mat-option>
-                </mat-select>
+                </mat-autocomplete>
             </mat-form-field>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mt-8">

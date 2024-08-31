@@ -16,6 +16,7 @@ import { analyticsRoutes } from 'app/modules/admin/dashboards/analytics/analytic
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatInputModule } from '@angular/material/input';
 
 @NgModule({
     declarations: [
@@ -37,6 +38,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
         MatFormFieldModule,
         MatSelectModule,
         MatAutocompleteModule,
+        MatInputModule,
     ]
 })
 export class AnalyticsModule
