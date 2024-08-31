@@ -1,39 +1,45 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewEncapsulation } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ApexOptions } from 'ng-apexcharts';
 import { AnalyticsService } from 'app/modules/admin/dashboards/analytics/analytics.service';
+import { CountryOption, ApiResponseByCountryCode } from 'app/modules/admin/dashboards/analytics/analytics.types';
 
 @Component({
-    selector       : 'analytics',
-    templateUrl    : './analytics.component.html',
-    encapsulation  : ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'analytics',
+    templateUrl: './analytics.component.html',
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Default
 })
-export class AnalyticsComponent implements OnInit, OnDestroy
-{
-    chartVisitors: ApexOptions;
-    chartConversions: ApexOptions;
-    chartImpressions: ApexOptions;
-    chartVisits: ApexOptions;
-    chartVisitorsVsPageViews: ApexOptions;
-    chartNewVsReturning: ApexOptions;
-    chartGender: ApexOptions;
-    chartAge: ApexOptions;
-    chartLanguage: ApexOptions;
-    data: any;
+export class AnalyticsComponent implements OnInit, OnDestroy {
+    chartBar: ApexOptions;
+    chartPie: ApexOptions;
+    data: ApiResponseByCountryCode | null;
+    allCountries: CountryOption[];
 
     private _unsubscribeAll: Subject<any> = new Subject<any>();
+    private _selectedCountryCode: string;
 
     /**
      * Constructor
      */
     constructor(
         private _analyticsService: AnalyticsService,
-        private _router: Router
-    )
-    {
+        private _router: Router,
+    ) {
+    }
+
+    get selectedCountryCode(): string {
+        return this._selectedCountryCode;
+    }
+
+    set selectedCountryCode(value: string) {
+        if (this._selectedCountryCode !== value) {
+            this._selectedCountryCode = value;
+
+            this._onCountryCodeChange(value);
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -43,18 +49,18 @@ export class AnalyticsComponent implements OnInit, OnDestroy
     /**
      * On init
      */
-    ngOnInit(): void
-    {
+    ngOnInit(): void {
         // Get the data
         this._analyticsService.data$
             .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe((data) => {
+            .subscribe((data: ApiResponseByCountryCode) => {
 
                 // Store the data
                 this.data = data;
 
                 // Prepare the chart data
                 this._prepareChartData();
+
             });
 
         // Attach SVG fill fixer to all ApexCharts
@@ -70,13 +76,32 @@ export class AnalyticsComponent implements OnInit, OnDestroy
                 }
             }
         };
+
+        this.selectedCountryCode = 'all';
+
+        this._analyticsService.countriesList$
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe((countryList) => {
+                const newCountryList = countryList.map(country => (
+                    {
+                        countryName: country.name,
+                        countryCode: country.alpha2code,
+                    }
+                ));
+
+                newCountryList.unshift({
+                    countryCode: 'all',
+                    countryName: 'All'
+                });
+
+                this.allCountries = newCountryList;
+            });
     }
 
     /**
      * On destroy
      */
-    ngOnDestroy(): void
-    {
+    ngOnDestroy(): void {
         // Unsubscribe from all subscriptions
         this._unsubscribeAll.next();
         this._unsubscribeAll.complete();
@@ -92,8 +117,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy
      * @param index
      * @param item
      */
-    trackByFn(index: number, item: any): any
-    {
+    trackByFn(index: number, item: any): any {
         return item.id || index;
     }
 
@@ -111,8 +135,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy
      * @param element
      * @private
      */
-    private _fixSvgFill(element: Element): void
-    {
+    private _fixSvgFill(element: Element): void {
         // Current URL
         const currentURL = this._router.url;
 
@@ -120,11 +143,11 @@ export class AnalyticsComponent implements OnInit, OnDestroy
         // 2. Filter out the ones that doesn't have cross reference so we only left with the ones that use the 'url(#id)' syntax
         // 3. Insert the 'currentURL' at the front of the 'fill' attribute value
         Array.from(element.querySelectorAll('*[fill]'))
-             .filter(el => el.getAttribute('fill').indexOf('url(') !== -1)
-             .forEach((el) => {
-                 const attrVal = el.getAttribute('fill');
-                 el.setAttribute('fill', `url(${currentURL}${attrVal.slice(attrVal.indexOf('#'))}`);
-             });
+            .filter(el => el.getAttribute('fill').indexOf('url(') !== -1)
+            .forEach((el) => {
+                const attrVal = el.getAttribute('fill');
+                el.setAttribute('fill', `url(${currentURL}${attrVal.slice(attrVal.indexOf('#'))}`);
+            });
     }
 
     /**
@@ -132,520 +155,165 @@ export class AnalyticsComponent implements OnInit, OnDestroy
      *
      * @private
      */
-    private _prepareChartData(): void
-    {
-        // Visitors
-        this.chartVisitors = {
-            chart     : {
-                animations: {
-                    speed           : 400,
-                    animateGradually: {
-                        enabled: false
-                    }
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                width     : '100%',
-                height    : '100%',
-                type      : 'area',
-                toolbar   : {
+    private _prepareChartData(): void {
+        if (!(this.data && Array.isArray(this.data) && this.data.length > 0)) {
+            return;
+        }
+
+        this.chartBar = {
+            chart: {
+                foreColor: '#94a3b8',
+                type: 'bar',
+                height: 400,
+                toolbar: {
                     show: false
                 },
-                zoom      : {
-                    enabled: false
+            },
+            plotOptions: {
+                bar: {
+                    dataLabels: {
+                        position: 'top',
+                    },
+                    borderRadius: 10,
+                    barHeight: '70%',
                 }
             },
-            colors    : ['#818CF8'],
             dataLabels: {
-                enabled: false
+                enabled: false,
+                style: {
+                    fontSize: '12px',
+                }
             },
-            fill      : {
-                colors: ['#312E81']
-            },
-            grid      : {
-                show       : true,
-                borderColor: '#334155',
-                padding    : {
-                    top   : 10,
-                    bottom: -40,
-                    left  : 0,
-                    right : 0
+            series: [
+                {
+                    name: 'Total Cases',
+                    data: [
+                        this.data?.[0]?.confirmed,
+                    ],
+                    color: '#0ea5e9'
                 },
-                position   : 'back',
-                xaxis      : {
+                {
+                    name: 'Total Recovered',
+                    data: [
+                        this.data?.[0]?.recovered
+                    ],
+                    color: '#22c55e'
+                },
+                {
+                    name: 'Total Deaths',
+                    data: [
+                        this.data?.[0]?.deaths
+                    ],
+                    color: '#ef4444'
+                }
+            ],
+            grid: {
+                show: true,
+                borderColor: '#475569',
+                padding: {
+                    top: 10,
+                    bottom: 0,
+                    left: 10,
+                    right: 10
+                },
+                position: 'back',
+                xaxis: {
                     lines: {
                         show: true
                     }
                 }
             },
-            series    : this.data.visitors.series,
-            stroke    : {
-                width: 2
-            },
-            tooltip   : {
-                followCursor: true,
-                theme       : 'dark',
-                x           : {
-                    format: 'MMM dd, yyyy'
-                },
-                y           : {
-                    formatter: (value: number): string => `${value}`
-                }
-            },
-            xaxis     : {
-                axisBorder: {
-                    show: false
-                },
-                axisTicks : {
-                    show: false
-                },
-                crosshairs: {
-                    stroke: {
-                        color    : '#475569',
-                        dashArray: 0,
-                        width    : 2
-                    }
-                },
-                labels    : {
-                    offsetY: -20,
-                    style  : {
-                        colors: '#CBD5E1'
-                    }
-                },
-                tickAmount: 20,
-                tooltip   : {
-                    enabled: false
-                },
-                type      : 'datetime'
-            },
-            yaxis     : {
-                axisTicks : {
-                    show: false
-                },
-                axisBorder: {
-                    show: false
-                },
-                min       : (min): number => min - 750,
-                max       : (max): number => max + 250,
-                tickAmount: 5,
-                show      : false
-            }
-        };
-
-        // Conversions
-        this.chartConversions = {
-            chart  : {
-                animations: {
-                    enabled: false
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'area',
-                sparkline : {
-                    enabled: true
-                }
-            },
-            colors : ['#38BDF8'],
-            fill   : {
-                colors : ['#38BDF8'],
-                opacity: 0.5
-            },
-            series : this.data.conversions.series,
-            stroke : {
-                curve: 'smooth'
-            },
             tooltip: {
                 followCursor: true,
-                theme       : 'dark'
-            },
-            xaxis  : {
-                type      : 'category',
-                categories: this.data.conversions.labels
-            },
-            yaxis  : {
-                labels: {
-                    formatter: (val): string => val.toString()
-                }
-            }
-        };
-
-        // Impressions
-        this.chartImpressions = {
-            chart  : {
-                animations: {
-                    enabled: false
+                theme: 'dark',
+                x: {
+                    formatter: (value: number): string => `${value.toLocaleString()}`
                 },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'area',
-                sparkline : {
-                    enabled: true
+                y: {
+                    formatter: (value: number): string => `${value.toLocaleString()}`,
                 }
             },
-            colors : ['#34D399'],
-            fill   : {
-                colors : ['#34D399'],
-                opacity: 0.5
-            },
-            series : this.data.impressions.series,
-            stroke : {
-                curve: 'smooth'
-            },
-            tooltip: {
-                followCursor: true,
-                theme       : 'dark'
-            },
-            xaxis  : {
-                type      : 'category',
-                categories: this.data.impressions.labels
-            },
-            yaxis  : {
+            xaxis: {
+                categories: ['Stats'],
+                type: 'category',
                 labels: {
-                    formatter: (val): string => val.toString()
-                }
-            }
-        };
-
-        // Visits
-        this.chartVisits = {
-            chart  : {
-                animations: {
-                    enabled: false
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'area',
-                sparkline : {
-                    enabled: true
-                }
-            },
-            colors : ['#FB7185'],
-            fill   : {
-                colors : ['#FB7185'],
-                opacity: 0.5
-            },
-            series : this.data.visits.series,
-            stroke : {
-                curve: 'smooth'
-            },
-            tooltip: {
-                followCursor: true,
-                theme       : 'dark'
-            },
-            xaxis  : {
-                type      : 'category',
-                categories: this.data.visits.labels
-            },
-            yaxis  : {
-                labels: {
-                    formatter: (val): string => val.toString()
-                }
-            }
-        };
-
-        // Visitors vs Page Views
-        this.chartVisitorsVsPageViews = {
-            chart     : {
-                animations: {
-                    enabled: false
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'area',
-                toolbar   : {
                     show: false
-                },
-                zoom      : {
-                    enabled: false
                 }
             },
-            colors    : ['#64748B', '#94A3B8'],
-            dataLabels: {
-                enabled: false
-            },
-            fill      : {
-                colors : ['#64748B', '#94A3B8'],
-                opacity: 0.5
-            },
-            grid      : {
-                show   : false,
-                padding: {
-                    bottom: -40,
-                    left  : 0,
-                    right : 0
-                }
-            },
-            legend    : {
-                show: false
-            },
-            series    : this.data.visitorsVsPageViews.series,
-            stroke    : {
-                curve: 'smooth',
-                width: 2
-            },
-            tooltip   : {
-                followCursor: true,
-                theme       : 'dark',
-                x           : {
-                    format: 'MMM dd, yyyy'
-                }
-            },
-            xaxis     : {
-                axisBorder: {
-                    show: false
+            yaxis: {
+                labels: {
+                    formatter: (value: number): string => `${value / 1000000}`,
                 },
-                labels    : {
-                    offsetY: -20,
-                    rotate : 0,
-                    style  : {
-                        colors: 'var(--fuse-text-secondary)'
-                    }
-                },
-                tickAmount: 3,
-                tooltip   : {
-                    enabled: false
-                },
-                type      : 'datetime'
-            },
-            yaxis     : {
-                labels    : {
+                title: {
+                    text: 'Number in Million',
                     style: {
-                        colors: 'var(--fuse-text-secondary)'
+                        cssClass: 'font-light tracking-wider'
                     }
-                },
-                max       : (max): number => max + 250,
-                min       : (min): number => min - 250,
-                show      : false,
-                tickAmount: 5
-            }
+                }
+            },
         };
 
-        // New vs. returning
-        this.chartNewVsReturning = {
-            chart      : {
-                animations: {
-                    speed           : 400,
-                    animateGradually: {
-                        enabled: false
-                    }
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'donut',
-                sparkline : {
-                    enabled: true
-                }
+        this.chartPie = {
+            chart: {
+                type: 'donut',
+                foreColor: '#94a3b8',
             },
-            colors     : ['#3182CE', '#63B3ED'],
-            labels     : this.data.newVsReturning.labels,
+            series: [
+                this.data?.[0]?.recovered,
+                this.data?.[0]?.deaths,
+                (
+                    this.data?.[0]?.confirmed - (this.data?.[0]?.recovered + this.data?.[0]?.deaths)
+                )
+            ],
+            labels: ['Recoveries', 'Deaths', 'Unknown'],
+            colors: ['#22c55e', '#ef4444', '#52525b'],
             plotOptions: {
                 pie: {
-                    customScale  : 0.9,
-                    expandOnClick: false,
-                    donut        : {
-                        size: '70%'
-                    }
+                    customScale: 0.85,
+                    donut: {
+                        size: '70%',
+                        background: 'transparent',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                formatter: (): string => `${Number(this.data?.[0].confirmed).toLocaleString()}`,
+                                color: '#0ea5e9',
+                                label: 'Total Cases'
+                            },
+                            value: {
+                                formatter: (value: string): string => `${Number(value).toLocaleString()}`,
+                            }
+                        }
+                    },
+                    dataLabels: {
+                        offset: 0,
+                        minAngleToShowLabel: 0
+                    },
                 }
             },
-            series     : this.data.newVsReturning.series,
-            states     : {
-                hover : {
-                    filter: {
-                        type: 'none'
-                    }
+            stroke: {
+                colors: ['transparent']
+            },
+            tooltip: {
+                followCursor: true,
+                theme: 'dark',
+                y: {
+                    formatter: (value: number): string => `${value.toLocaleString()}`
                 },
-                active: {
-                    filter: {
-                        type: 'none'
-                    }
+            },
+            legend: {
+                position: 'bottom'
+            },
+            dataLabels: {
+                dropShadow: {
+                    enabled: false
                 }
             },
-            tooltip    : {
-                enabled        : true,
-                fillSeriesColor: false,
-                theme          : 'dark',
-                custom         : ({
-                                      seriesIndex,
-                                      w
-                                  }): string => `<div class="flex items-center h-8 min-h-8 max-h-8 px-3">
-                                                    <div class="w-3 h-3 rounded-full" style="background-color: ${w.config.colors[seriesIndex]};"></div>
-                                                    <div class="ml-2 text-md leading-none">${w.config.labels[seriesIndex]}:</div>
-                                                    <div class="ml-2 text-md font-bold leading-none">${w.config.series[seriesIndex]}%</div>
-                                                </div>`
-            }
         };
+    }
 
-        // Gender
-        this.chartGender = {
-            chart      : {
-                animations: {
-                    speed           : 400,
-                    animateGradually: {
-                        enabled: false
-                    }
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'donut',
-                sparkline : {
-                    enabled: true
-                }
-            },
-            colors     : ['#319795', '#4FD1C5'],
-            labels     : this.data.gender.labels,
-            plotOptions: {
-                pie: {
-                    customScale  : 0.9,
-                    expandOnClick: false,
-                    donut        : {
-                        size: '70%'
-                    }
-                }
-            },
-            series     : this.data.gender.series,
-            states     : {
-                hover : {
-                    filter: {
-                        type: 'none'
-                    }
-                },
-                active: {
-                    filter: {
-                        type: 'none'
-                    }
-                }
-            },
-            tooltip    : {
-                enabled        : true,
-                fillSeriesColor: false,
-                theme          : 'dark',
-                custom         : ({
-                                      seriesIndex,
-                                      w
-                                  }): string => `<div class="flex items-center h-8 min-h-8 max-h-8 px-3">
-                                                     <div class="w-3 h-3 rounded-full" style="background-color: ${w.config.colors[seriesIndex]};"></div>
-                                                     <div class="ml-2 text-md leading-none">${w.config.labels[seriesIndex]}:</div>
-                                                     <div class="ml-2 text-md font-bold leading-none">${w.config.series[seriesIndex]}%</div>
-                                                 </div>`
-            }
-        };
-
-        // Age
-        this.chartAge = {
-            chart      : {
-                animations: {
-                    speed           : 400,
-                    animateGradually: {
-                        enabled: false
-                    }
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'donut',
-                sparkline : {
-                    enabled: true
-                }
-            },
-            colors     : ['#DD6B20', '#F6AD55'],
-            labels     : this.data.age.labels,
-            plotOptions: {
-                pie: {
-                    customScale  : 0.9,
-                    expandOnClick: false,
-                    donut        : {
-                        size: '70%'
-                    }
-                }
-            },
-            series     : this.data.age.series,
-            states     : {
-                hover : {
-                    filter: {
-                        type: 'none'
-                    }
-                },
-                active: {
-                    filter: {
-                        type: 'none'
-                    }
-                }
-            },
-            tooltip    : {
-                enabled        : true,
-                fillSeriesColor: false,
-                theme          : 'dark',
-                custom         : ({
-                                      seriesIndex,
-                                      w
-                                  }): string => `<div class="flex items-center h-8 min-h-8 max-h-8 px-3">
-                                                    <div class="w-3 h-3 rounded-full" style="background-color: ${w.config.colors[seriesIndex]};"></div>
-                                                    <div class="ml-2 text-md leading-none">${w.config.labels[seriesIndex]}:</div>
-                                                    <div class="ml-2 text-md font-bold leading-none">${w.config.series[seriesIndex]}%</div>
-                                                </div>`
-            }
-        };
-
-        // Language
-        this.chartLanguage = {
-            chart      : {
-                animations: {
-                    speed           : 400,
-                    animateGradually: {
-                        enabled: false
-                    }
-                },
-                fontFamily: 'inherit',
-                foreColor : 'inherit',
-                height    : '100%',
-                type      : 'donut',
-                sparkline : {
-                    enabled: true
-                }
-            },
-            colors     : ['#805AD5', '#B794F4'],
-            labels     : this.data.language.labels,
-            plotOptions: {
-                pie: {
-                    customScale  : 0.9,
-                    expandOnClick: false,
-                    donut        : {
-                        size: '70%'
-                    }
-                }
-            },
-            series     : this.data.language.series,
-            states     : {
-                hover : {
-                    filter: {
-                        type: 'none'
-                    }
-                },
-                active: {
-                    filter: {
-                        type: 'none'
-                    }
-                }
-            },
-            tooltip    : {
-                enabled        : true,
-                fillSeriesColor: false,
-                theme          : 'dark',
-                custom         : ({
-                                      seriesIndex,
-                                      w
-                                  }): string => `<div class="flex items-center h-8 min-h-8 max-h-8 px-3">
-                                                    <div class="w-3 h-3 rounded-full" style="background-color: ${w.config.colors[seriesIndex]};"></div>
-                                                    <div class="ml-2 text-md leading-none">${w.config.labels[seriesIndex]}:</div>
-                                                    <div class="ml-2 text-md font-bold leading-none">${w.config.series[seriesIndex]}%</div>
-                                                </div>`
-            }
-        };
+    private _onCountryCodeChange(newCountryCode: string): void {
+        this._analyticsService.updateData(newCountryCode);
     }
 }

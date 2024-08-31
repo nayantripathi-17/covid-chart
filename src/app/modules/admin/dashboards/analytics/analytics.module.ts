@@ -13,6 +13,9 @@ import { NgApexchartsModule } from 'ng-apexcharts';
 import { SharedModule } from 'app/shared/shared.module';
 import { AnalyticsComponent } from 'app/modules/admin/dashboards/analytics/analytics.component';
 import { analyticsRoutes } from 'app/modules/admin/dashboards/analytics/analytics.routing';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 
 @NgModule({
     declarations: [
@@ -30,7 +33,10 @@ import { analyticsRoutes } from 'app/modules/admin/dashboards/analytics/analytic
         MatTableModule,
         MatTooltipModule,
         NgApexchartsModule,
-        SharedModule
+        SharedModule,
+        MatFormFieldModule,
+        MatSelectModule,
+        MatAutocompleteModule,
     ]
 })
 export class AnalyticsModule
